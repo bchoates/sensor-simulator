@@ -2,12 +2,13 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"strconv"
 	"time"
 
 	"github.com/bchoates/sensor-simulator/app"
-	nats "github.com/nats-io/go-nats"
+	nats "github.com/nats-io/nats.go"
 )
 
 const (
@@ -24,7 +25,7 @@ func main() {
 	sensorSubject := flag.String("sub", defaultSensorSubject, "subject to publish to")
 	sensorCount := flag.Uint64("count", defaultSensorCount, "number of sensors to use")
 	interval := flag.Int64("interval", defaultInterval, "interval in milliseconds to log values")
-	//printValues := flag.Bool("print", defaultPrintValues, "adds a subscriber that prints values added to the bus")
+	printValues := flag.Bool("print", defaultPrintValues, "adds a subscriber that prints values added to the bus")
 	natsAddress := flag.String("nats", defaultNatsAddress, "nats address")
 	sensorMean := flag.Float64("mean", defaultSensorMean, "mean value for the sensors")
 	sensorDev := flag.Float64("dev", defaultSensorDev, "standard deviation for the sensors")
@@ -41,17 +42,25 @@ func main() {
 		sim.AddSensor(name, *sensorMean, *sensorDev)
 	}
 
+	if *printValues {
+		go func(conn *nats.Conn, subject string) {
+			conn.Subscribe(subject, func(m *nats.Msg) {
+				fmt.Printf("sensor data rec: %v\n", string(m.Data))
+			})
+		}(bus, *sensorSubject)
+	}
+
 	for {
 		data, err := sim.Log()
 		if err != nil {
 			log.Printf("failed to read sensor data: %v", err)
 			continue
 		}
-		err := bus.Publish(*sensorSubject, data)
+		err = bus.Publish(*sensorSubject, data)
 		if err != nil {
 			log.Printf("failed to publish data: %v", err)
 			continue
 		}
-		<-time.After(*interval * time.Millisecond)
+		<-time.After(time.Duration(*interval) * time.Millisecond)
 	}
 }
