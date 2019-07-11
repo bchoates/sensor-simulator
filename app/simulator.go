@@ -11,9 +11,9 @@ type Simulator struct {
 }
 
 //AddSensor adds sensor to the list
-func (sim *Simulator) AddSensor(Name string, mean, dev float64) {
+func (sim *Simulator) AddSensor(name string, mean, dev float64) {
 	sen := &sensor{
-		Name:   "testsensor",
+		Name:   name,
 		Mean:   mean,
 		StdDev: dev,
 		seed:   rand.New(rand.NewSource(time.Now().UnixNano())),
