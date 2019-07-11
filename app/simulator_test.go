@@ -49,3 +49,29 @@ func TestAddSensorMultiple(t *testing.T) {
 		}
 	}
 }
+
+func TestLog(t *testing.T) {
+	tt := []struct {
+		Name string
+		Mean float64
+		Dev  float64
+	}{
+		{"sensor1", 45.0, 0},
+		{"sensor2", 50.0, 0},
+		{"sensor3", 55.0, 0},
+	}
+	manData := []byte("bryton")
+	sim := &Simulator{}
+	for _, test := range tt {
+		sim.AddSensor(test.Name, test.Mean, test.Dev)
+	}
+
+	simData, err := sim.Log()
+	if err != nil {
+		t.Fatalf("log failed: %v", err)
+	}
+
+	if got, want := simData, manData; !reflect.DeepEqual(got, want) {
+		t.Errorf("data incorrect: got %s, want %s", string(got), string(want))
+	}
+}
