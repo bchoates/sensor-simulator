@@ -1,9 +1,11 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
+	"math"
 	"strconv"
 	"time"
 
@@ -15,15 +17,21 @@ const (
 	defaultSensorSubject = "sensorData"
 	defaultSensorCount   = 3
 	defaultInterval      = 1000
-	defaultPrintValues   = true
+	defaultPrintValues   = false
 	defaultNatsAddress   = nats.DefaultURL
 	defaultSensorMean    = 50
 	defaultSensorDev     = 3
 )
 
+type event struct {
+	Name      string  `json:"name"`
+	TimeStamp int64   `json:"timestamp"`
+	Value     float64 `json:"value"`
+}
+
 func main() {
 	sensorSubject := flag.String("sub", defaultSensorSubject, "subject to publish to")
-	sensorCount := flag.Uint64("count", defaultSensorCount, "number of sensors to use")
+	sensorCount := flag.Int64("count", defaultSensorCount, "number of sensors to use")
 	interval := flag.Int64("interval", defaultInterval, "interval in milliseconds to log values")
 	printValues := flag.Bool("print", defaultPrintValues, "adds a subscriber that prints values added to the bus")
 	natsAddress := flag.String("nats", defaultNatsAddress, "nats address")
@@ -37,9 +45,12 @@ func main() {
 	}
 
 	sim := app.Simulator{}
-	for i := uint64(0); i < *sensorCount; i++ {
-		name := "sensor" + strconv.FormatUint(i, 10)
-		sim.AddSensor(name, *sensorMean, *sensorDev)
+	events := make([]event, *sensorCount)
+
+	for i := int64(0); i < *sensorCount; i++ {
+		name := "sensor" + strconv.FormatInt(i, 10)
+		sim.AddSensor(name, *sensorMean, *sensorDev, i)
+		events[i].Name = name
 	}
 
 	if *printValues {
@@ -51,12 +62,23 @@ func main() {
 	}
 
 	for {
+		timestamp := time.Now().Unix()
 		data, err := sim.Log()
 		if err != nil {
 			log.Printf("failed to read sensor data: %v", err)
 			continue
 		}
-		err = bus.Publish(*sensorSubject, data)
+		for i, val := range data {
+			events[i].TimeStamp = timestamp
+			events[i].Value = (math.Round(val*100) / 100)
+		}
+
+		message, err := json.Marshal(events)
+		if err != nil {
+			log.Printf("error marashalling data")
+		}
+
+		err = bus.Publish(*sensorSubject, message)
 		if err != nil {
 			log.Printf("failed to publish data: %v", err)
 			continue

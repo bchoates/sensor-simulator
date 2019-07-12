@@ -1,6 +1,7 @@
 package app
 
 import (
+	"math"
 	"math/rand"
 	"reflect"
 	"testing"
@@ -18,7 +19,7 @@ func TestAddSensor(t *testing.T) {
 		seed:   rand.New(rand.NewSource(time.Now().UnixNano())),
 	}
 	sim := &Simulator{}
-	sim.AddSensor(name, mean, dev)
+	sim.AddSensor(name, mean, dev, 0)
 
 	if got, want := ts, sim.sensors[0]; !reflect.DeepEqual(got, want) {
 		t.Errorf("structs differ. got %v, want %v", got, want)
@@ -43,7 +44,7 @@ func TestAddSensorMultiple(t *testing.T) {
 			StdDev: test.Dev,
 			seed:   rand.New(rand.NewSource(time.Now().UnixNano())),
 		}
-		sim.AddSensor(test.Name, test.Mean, test.Dev)
+		sim.AddSensor(test.Name, test.Mean, test.Dev, 0)
 		if got, want := ts, sim.sensors[i]; !reflect.DeepEqual(got, want) {
 			t.Errorf("structs differ. got %v, want %v", got, want)
 		}
@@ -60,10 +61,9 @@ func TestLog(t *testing.T) {
 		{"sensor2", 50.0, 0},
 		{"sensor3", 55.0, 0},
 	}
-	manData := []byte("bryton")
 	sim := &Simulator{}
 	for _, test := range tt {
-		sim.AddSensor(test.Name, test.Mean, test.Dev)
+		sim.AddSensor(test.Name, test.Mean, test.Dev, 0)
 	}
 
 	simData, err := sim.Log()
@@ -71,7 +71,27 @@ func TestLog(t *testing.T) {
 		t.Fatalf("log failed: %v", err)
 	}
 
-	if got, want := simData, manData; !reflect.DeepEqual(got, want) {
-		t.Errorf("data incorrect: got %s, want %s", string(got), string(want))
+	for i, value := range simData {
+		if got, want := value, tt[i].Mean; math.Abs(got-want) >= 1e-6 {
+			t.Errorf("data incorrect: got %f, want %f", got, want)
+		}
+	}
+}
+
+func TestLogNoSeed(t *testing.T) {
+	name := "testsensor"
+	mean := 50.0
+	dev := 5.0
+	sen := &sensor{
+		Name:   name,
+		Mean:   mean,
+		StdDev: dev,
+	}
+	sim := &Simulator{}
+	sim.sensors = append(sim.sensors, sen)
+
+	_, err := sim.Log()
+	if err == nil {
+		t.Errorf("expected error")
 	}
 }

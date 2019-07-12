@@ -11,17 +11,25 @@ type Simulator struct {
 }
 
 //AddSensor adds sensor to the list
-func (sim *Simulator) AddSensor(name string, mean, dev float64) {
+func (sim *Simulator) AddSensor(name string, mean, dev float64, random int64) {
 	sen := &sensor{
 		Name:   name,
 		Mean:   mean,
 		StdDev: dev,
-		seed:   rand.New(rand.NewSource(time.Now().UnixNano())),
+		seed:   rand.New(rand.NewSource(time.Now().UnixNano() + random)),
 	}
 	sim.sensors = append(sim.sensors, sen)
 }
 
 //Log retrieves data from the sensors
-func (sim *Simulator) Log() ([]byte, error) {
-	return nil, nil
+func (sim *Simulator) Log() ([]float64, error) {
+	values := make([]float64, len(sim.sensors))
+	for i, s := range sim.sensors {
+		val, err := s.Value()
+		if err != nil {
+			return nil, err
+		}
+		values[i] = val
+	}
+	return values, nil
 }
